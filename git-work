@@ -1,0 +1,32 @@
+#!/usr/bin/env ruby
+require 'git'
+require 'logger'
+require 'terminal-table'
+
+days_ago = ARGV[0] || "1"
+days_ago = days_ago.to_i
+Dir[File.join(ENV["HOME"], "dev", "*")].each do |file|
+  if File.directory? file
+    begin
+      g = Git.open(file)
+      logs = g.log.since("#{days_ago} days ago")
+      unless logs.size == 0
+        STDOUT.puts file.sub(File.join(ENV['HOME'], 'dev'), '')
+        STDOUT.puts '================================'
+        table = Terminal::Table.new do |t|
+          logs.each do |log|
+            t << [log.sha[0..6], log.date.strftime("%d-%b %H:%M"), log.author.email, log.message]
+          end
+        end
+        puts table
+        STDOUT.puts ''
+      end
+    rescue ArgumentError => ex
+      next if ex.message =~ /does not exist/
+      raise
+    rescue Git::GitExecuteError => ex
+      next if ex.message =~ /bad default revision 'HEAD'/
+      raise
+    end
+  end
+end
